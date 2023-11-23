@@ -1,13 +1,20 @@
 package ru.netology.ChatServer;
 
+import ru.netology.ChatUser.Client;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 
 public class Main {
     private static final String ADDRESS = "localhost";
     private static final int PORT = 8080;
     private static final String SETTINGSPATH = "settings.txt";
+    private static Map<String, Client> clients = new HashMap<>();
+
 
     public static void main(String[] args) {
         try {
@@ -15,32 +22,22 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        while (true) {
-            try (ServerSocket serverSocket = new ServerSocket(PORT);
-                 Socket clientSocket = serverSocket.accept();
-                 PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))
-            ) {
-                System.out.println("client " + clientSocket.getPort() + " connected");
-                out.println("Welcome to the server! What's your name?");
-                String clientResponce = in.readLine();
-                out.println("Nice to meet you, "+clientResponce);
-
-            } catch (IOException e) {
-                e.printStackTrace();
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                sendMsgToAll("New connection: " + clientSocket.getPort());
+                new Thread(() -> {
+                    try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
+                         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                        out.println("Enter your name");
+                        Client client = new Client(in.readLine(), clientSocket, out);
+                        clients.put((client.getName() + " " + clientSocket.getPort()), client);
+                        waitMsg(clientSocket);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }).start();
             }
-
-        }
-    }
-
-    public static void checkingSettings(File file) {
-        String str;
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            while ((str = br.readLine()) != null) {
-                System.out.println(str);
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,5 +50,29 @@ public class Main {
         bf.write("port: " + PORT);
         System.out.println("Settings file created successfully");
         bf.close();
+    }
+
+    public static void sendMsgToAll(String msg) {
+        for (Map.Entry<String, Client> entryMap : clients.entrySet()) {
+            entryMap.getValue().sendMsg(msg);
+        }
+    }
+
+    public static void waitMsg(Socket clientSocket) {
+        String str;
+        try (Scanner scanner = new Scanner(clientSocket.getInputStream())) {
+            while (true) {
+                if (scanner.hasNext()) {
+                    str = scanner.nextLine();
+                    if (str.equalsIgnoreCase("/exit")) {
+                        sendMsgToAll(clientSocket.getPort() + " : Disconnected");
+                        break;
+                    }
+                    sendMsgToAll(clientSocket.getPort() + " : " + str);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
