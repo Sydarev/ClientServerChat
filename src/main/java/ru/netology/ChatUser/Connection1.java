@@ -12,22 +12,24 @@ public class Connection1 {
     private static int port;
     private static String settingsPath = "settings.txt";
 
-    private static BufferedReader out;
-    private static PrintWriter in;
+    private static BufferedReader in;
+    private static PrintWriter out;
+    private static Socket clientSocket;
 
 
     public static void main(String[] args) {
         getAddress(settingsPath);
-        try (Socket clientSocket = new Socket(address, port)) {
-        out = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        in = new PrintWriter(clientSocket.getOutputStream());
-        Scanner scanner = new Scanner(System.in);
-        AtomicBoolean flag = new AtomicBoolean(false);
+        try {
+            clientSocket = new Socket(address, port);
+            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            out = new PrintWriter(clientSocket.getOutputStream(), true);
+            Scanner scanner = new Scanner(System.in);
+            AtomicBoolean flag = new AtomicBoolean(true);
             new Thread(() -> {
                 while (true) {
-                    if (flag.get()) {
+                    if (!flag.get()) {
                         try {
-                            out.close();
+                            in.close();
                             clientSocket.close();
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -35,8 +37,8 @@ public class Connection1 {
                         break;
                     }
                     try {
-                        if (out.ready()) {
-                            String msg = out.readLine();
+                        if (in.ready()) {
+                            String msg = in.readLine();
                             System.out.println(msg);
                         }
                     } catch (IOException e) {
@@ -46,18 +48,17 @@ public class Connection1 {
                 }
             }).start();
             new Thread(() -> {
-                String str;
                 while (true) {
                     if (scanner.hasNext()) {
-                        str = scanner.nextLine();
+                        String str = scanner.nextLine();
                         if (str.equalsIgnoreCase("/exit")) {
-                            in.println(str);
+                            out.println(str);
                             scanner.close();
-                            in.close();
-                            flag.set(true);
+                            out.close();
+                            flag.set(false);
                             break;
                         }
-                        in.println(str);
+                        out.println(str);
                     }
                 }
             }).start();
@@ -68,18 +69,21 @@ public class Connection1 {
         }
     }
 
-    public static void getAddress(String filePath) {
+    public static boolean getAddress(String filePath) {
         String[] strings;
         try {
-            out = new BufferedReader(new FileReader(filePath));
-            strings = out.readLine().split(" ");
+            in = new BufferedReader(new FileReader(filePath));
+            strings = in.readLine().split(" ");
             address = strings[strings.length - 1];
-            strings = out.readLine().split(" ");
+            strings = in.readLine().split(" ");
             port = Integer.parseInt(strings[strings.length - 1]);
+            return true;
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+            return false;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 }

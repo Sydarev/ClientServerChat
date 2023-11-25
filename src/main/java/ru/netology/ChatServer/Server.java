@@ -9,10 +9,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
-public class Main {
-    private static final String ADDRESS = "localhost";
-    private static final int PORT = 8080;
-    private static final String SETTINGSPATH = "settings.txt";
+public class Server {
+    static final String ADDRESS = "localhost";
+    static final int PORT = 8080;
+    static final String SETTINGSPATH = "settings.txt";
+    static final String LOGPATH = "log.txt";
     private static Map<String, Client> clients = new HashMap<>();
 
 
@@ -25,13 +26,15 @@ public class Main {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                sendMsgToAll("New connection: " + clientSocket.getPort());
                 new Thread(() -> {
-                    try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)){
+                    try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                        out.println("Enter your name:");
                         Client client = new Client(clientSocket, out);
+                        client.setName(in.readLine());
                         clients.put((client.getName() + "#" + clientSocket.getPort()), client);
-                        System.out.println(client);
-                        waitMsg(clientSocket);
+                        sendMsgToAll(client.getName() + " connected!", client);
+                        waitMsg(clientSocket, client);
                     } catch (IOException e) {
                         e.printStackTrace();
                     } finally {
@@ -57,28 +60,29 @@ public class Main {
         bf.close();
     }
 
-    public static void sendMsgToAll(String msg) {
+    public static void sendMsgToAll(String msg, Client client) {
         for (Map.Entry<String, Client> entryMap : clients.entrySet()) {
-            entryMap.getValue().sendMsg(entryMap.getKey()+msg);
-            System.out.println("Proverka");
+            if (entryMap.getValue() == client) continue;
+            entryMap.getValue().sendMsg(msg);
         }
+        Logger.log(LOGPATH, msg, client);
     }
 
-    public static void waitMsg(Socket clientSocket) {
-        String str;
+    public static void waitMsg(Socket clientSocket, Client client) {
         try (Scanner scanner = new Scanner(clientSocket.getInputStream())) {
             while (true) {
                 if (scanner.hasNext()) {
-                    str = scanner.nextLine();
+                    String str = scanner.nextLine();
                     if (str.equalsIgnoreCase("/exit")) {
-                        sendMsgToAll(clientSocket.getPort() + " : Disconnected");
+                        sendMsgToAll(client.getName() + ": Disconnected", client);
                         break;
                     }
-                    sendMsgToAll(clientSocket.getPort() + " : " + str);
+                    sendMsgToAll(client.getName() + ": " + str, client);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 }

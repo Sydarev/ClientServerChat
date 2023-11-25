@@ -1,4 +1,5 @@
 package ru.netology.ChatUser;
+
 import java.io.PrintWriter;
 import java.net.Socket;
 
@@ -9,13 +10,17 @@ public class Client {
     private PrintWriter out;
 
     public Client(Socket socket, PrintWriter out) {
-//        this.name = name;
         this.socket = socket;
         this.out = out;
     }
-    public void sendMsg(String msg){
+
+    public void sendMsg(String msg) {
         out.println(msg);
         out.flush();
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getName() {
