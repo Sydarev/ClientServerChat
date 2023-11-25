@@ -8,8 +8,8 @@ public class Client {
     private Socket socket;
     private PrintWriter out;
 
-    public Client(String name, Socket socket, PrintWriter out) {
-        this.name = name;
+    public Client(Socket socket, PrintWriter out) {
+//        this.name = name;
         this.socket = socket;
         this.out = out;
     }

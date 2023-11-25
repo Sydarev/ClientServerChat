@@ -27,14 +27,19 @@ public class Main {
                 Socket clientSocket = serverSocket.accept();
                 sendMsgToAll("New connection: " + clientSocket.getPort());
                 new Thread(() -> {
-                    try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
-                         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-                        out.println("Enter your name");
-                        Client client = new Client(in.readLine(), clientSocket, out);
-                        clients.put((client.getName() + " " + clientSocket.getPort()), client);
+                    try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)){
+                        Client client = new Client(clientSocket, out);
+                        clients.put((client.getName() + "#" + clientSocket.getPort()), client);
+                        System.out.println(client);
                         waitMsg(clientSocket);
                     } catch (IOException e) {
                         e.printStackTrace();
+                    } finally {
+                        try {
+                            clientSocket.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }).start();
             }
@@ -54,7 +59,8 @@ public class Main {
 
     public static void sendMsgToAll(String msg) {
         for (Map.Entry<String, Client> entryMap : clients.entrySet()) {
-            entryMap.getValue().sendMsg(msg);
+            entryMap.getValue().sendMsg(entryMap.getKey()+msg);
+            System.out.println("Proverka");
         }
     }
 
